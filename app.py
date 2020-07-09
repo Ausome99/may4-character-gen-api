@@ -5,7 +5,7 @@ from flask_cors import CORS
 from flask_heroku import Heroku
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = ""
+app.config["SQLALCHEMY_DATABASE_URI"] = "postgres://gcbhrlkrkjmkir:4392015a663b61f144cf62aaffcee13afe18b8f756ac7519ec6d6f31944f36bd@ec2-3-216-129-140.compute-1.amazonaws.com:5432/dbv0m7igu679ai"
 
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
@@ -24,6 +24,46 @@ class Character(db.Model):
         self.name = name
         self.character_class = character_class
         self.hitpoints = 100
+
+class CharacterSchema(ma.Schema):
+    class Meta:
+        fields = ("id", "name", "character_class", "hitpoints")
+
+character_schema = CharacterSchema()
+characters_schema = CharacterSchema(many=True)
+
+
+@app.route("/character/add", methods=["POST"])
+def add_character():
+    if request.content_type != "application/json":
+        return jsonify("Error: Data must be sent as JSON")
+
+    post_data = request.get_json()
+    name = post_data.get("name")
+    character_class = post_data.get("character_class")
+
+    record = Character(name, character_class)
+    db.session.add(record)
+    db.session.commit()
+
+    return jsonify("Character Created")
+
+@app.route("/character/get", methods=["GET"])
+def get_all_characters():
+    all_characters = db.session.query(Character).all()
+    return jsonify(characters_schema.dump(all_characters))
+
+@app.route("/character/get/<id>", methods=["GET"])
+def get_character_by_id(id):
+    character = db.session.query(Character).filter(Character.id == id).first()
+    return jsonify(character_schema.dump(character))
+
+@app.route("/character/delete/<id>", methods=["DELETE"])
+def delete_character_by_id(id):
+    character = db.session.query(Character).filter(Character.id == id).first()
+    db.session.delete(character)
+    db.session.commit()
+    return jsonify("Character Deleted")
 
 
 if __name__ == "__main__":
